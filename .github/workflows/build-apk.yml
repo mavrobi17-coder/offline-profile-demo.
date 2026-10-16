@@ -4,41 +4,61 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'ReserveDemoAndroid/**'
+      - 'OfflineProfileDemo_Android_Project_Fixed.zip'
       - '.github/workflows/build-apk.yml'
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
-      - name: Unpack Android project
-        run: |
-          mkdir -p ReserveDemoAndroid
-          unzip -o OfflineProfileDemo_Android_Project_Fixed.zip -d ReserveDemoAndroid
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up JDK
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
-        with:
-          packages: 'platform-tools'
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        run: |
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Unpack Android project
+        run: |
+          mkdir -p ReserveDemoAndroid
+          unzip -o OfflineProfileDemo_Android_Project_Fixed.zip -d ReserveDemoAndroid
+          find ReserveDemoAndroid -maxdepth 5 -type f | sort
 
       - name: Build APK
-        working-directory: ReserveDemoAndroid
         run: |
-          gradle --version
-          gradle assembleDebug
+          PROJECT_DIR="$(find ReserveDemoAndroid -type f -name settings.gradle -printf '%h\n' | head -1)"
+          if [ -z "$PROJECT_DIR" ]; then
+            PROJECT_DIR="$(find ReserveDemoAndroid -type f -name settings.gradle.kts -printf '%h\n' | head -1)"
+          fi
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "ERROR: Gradle project not found in ZIP"
+            exit 1
+          fi
+          echo "Building project in: $PROJECT_DIR"
+          if [ -f "$PROJECT_DIR/gradlew" ]; then
+            chmod +x "$PROJECT_DIR/gradlew"
+            "$PROJECT_DIR/gradlew" -p "$PROJECT_DIR" assembleDebug
+          else
+            gradle -p "$PROJECT_DIR" assembleDebug
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: offline-profile-demo-apk
-          path: ReserveDemoAndroid/app/build/outputs/apk/debug/app-debug.apk
+          name: OfflineProfileDemo-APK
+          path: ReserveDemoAndroid/**/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 7
