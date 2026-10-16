@@ -12,6 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
+      - name: Unpack Android project
+        run: |
+          mkdir -p ReserveDemoAndroid
+          unzip -o OfflineProfileDemo_Android_Project_Fixed.zip -d ReserveDemoAndroid
         uses: actions/checkout@v4
 
       - name: Set up JDK
